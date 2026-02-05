@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Diff - Vault{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" class="me-2"><path d="M8.75 1.75a.75.75 0 00-1.5 0V5H4a.75.75 0 000 1.5h3.25v3.25a.75.75 0 001.5 0V6.5H12A.75.75 0 0012 5H8.75V1.75zM4 13a.75.75 0 000 1.5h8a.75.75 0 000-1.5H4z"/></svg>
+        Diff: <span class="mono text-secondary">{{ file_path }}</span>
+    </h1>
+    <div>
+        <a href="/history?path={{ file_path|urlencode }}" class="btn btn-sm btn-outline-secondary">History</a>
+        <a href="/edit?path={{ file_path|urlencode }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between">
+        <span>Comparing v{{ old_version }} &rarr; v{{ new_version }}</span>
+        <div>
+            {% if old_version > 1 %}
+            <a href="/diff?path={{ file_path|urlencode }}&old={{ old_version - 1 }}&new={{ old_version }}" class="btn btn-xs btn-outline-secondary">&laquo; Prev</a>
+            {% endif %}
+            <a href="/diff?path={{ file_path|urlencode }}&old={{ new_version }}&new={{ new_version + 1 }}" class="btn btn-xs btn-outline-secondary">Next &raquo;</a>
+        </div>
+    </div>
+    <div class="card-body p-0" id="diff-content">
+        <div class="loading-spinner"><div class="spinner-border spinner-border-sm me-2"></div> Loading diff...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    initDiff({{ file_path|tojson }}, {{ old_version }}, {{ new_version }});
+});
+</script>
+{% endblock %}

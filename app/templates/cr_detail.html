@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}CR #{{ cr_id }} - Vault{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="/change-requests" class="text-muted text-decoration-none">&larr; Back to Change Requests</a>
+</div>
+
+<div id="cr-detail">
+    <div class="loading-spinner"><div class="spinner-border spinner-border-sm me-2"></div> Loading...</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    initCRDetail({{ cr_id }});
+});
+</script>
+{% endblock %}

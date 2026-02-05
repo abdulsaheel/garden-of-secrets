@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New File' if mode == 'new' else 'Edit' }} - Vault{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+<style>
+.CodeMirror { background: var(--bg-secondary) !important; color: var(--text-primary) !important; }
+.CodeMirror-gutters { background: var(--bg-tertiary) !important; border-color: var(--border-default) !important; }
+.CodeMirror-linenumber { color: var(--text-muted) !important; }
+.CodeMirror-cursor { border-color: var(--text-primary) !important; }
+.CodeMirror-selected { background: rgba(85, 75, 106, 0.15) !important; }
+.CodeMirror-activeline-background { background: var(--bg-primary) !important; }
+.cr-banner {
+    display: none;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    align-items: center;
+    justify-content: space-between;
+}
+.cr-banner.show { display: flex; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>
+        {% if mode == 'new' %}
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" class="me-2"><path d="M8 0a8 8 0 110 16A8 8 0 018 0zM1.5 8a6.5 6.5 0 1013 0 6.5 6.5 0 00-13 0zm7.25-3.25v2.5h2.5a.75.75 0 010 1.5h-2.5v2.5a.75.75 0 01-1.5 0v-2.5h-2.5a.75.75 0 010-1.5h2.5v-2.5a.75.75 0 011.5 0z"/></svg>
+        New File
+        {% else %}
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" class="me-2"><path d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61zM12.66 2.3l-8.1 8.1-.4.4-.17.6-.38 1.32 1.32-.38.6-.17.4-.4 8.1-8.1-.63-.63-.63-.63-1.11 1.11z"/></svg>
+        Edit File
+        {% endif %}
+    </h1>
+    <div>
+        <button class="btn btn-sm btn-primary" onclick="saveFile()" id="save-btn">Save</button>
+        {% if mode == 'edit' %}
+        <a href="/history?path={{ file_path|urlencode }}" class="btn btn-sm btn-outline-secondary">History</a>
+        <button id="public-toggle-btn" class="btn btn-sm btn-outline-secondary" style="display:none" onclick="editorTogglePublic()">Public</button>
+        <button id="archive-toggle-btn" class="btn btn-sm btn-outline-secondary" style="display:none" onclick="editorToggleArchive()">Archive</button>
+        <button id="delete-btn" class="btn btn-sm btn-danger" style="display:none" onclick="editorDeleteFile()">Delete</button>
+        {% endif %}
+        <a href="/browse" class="btn btn-sm btn-outline-secondary">Cancel</a>
+    </div>
+</div>
+
+<div class="cr-banner" id="cr-banner">
+    <div>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="#554B6A" class="me-1"><path d="M1.5 3.25a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zm5.677-.177L9.573.677A.25.25 0 0110 .854V2.5h1A2.5 2.5 0 0113.5 5v5.628a2.251 2.251 0 11-1.5 0V5a1 1 0 00-1-1h-1v1.646a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354z"/></svg>
+        Staged in <a href="#" id="cr-link">CR #<span id="cr-id-display"></span></a>
+        <span class="text-muted ms-2">(<span id="cr-file-count">0</span> file(s))</span>
+    </div>
+    <div>
+        <a href="#" id="cr-review-link" class="btn btn-xs btn-outline-secondary">Review &amp; Submit</a>
+    </div>
+</div>
+
+<div class="mb-3">
+    <div class="row g-2">
+        <div class="col-md-8">
+            <label class="form-label">File Path</label>
+            <input type="text" id="file-path" class="form-control mono" value="{{ file_path }}" {% if mode == 'edit' %}readonly{% endif %} placeholder="e.g. docs/readme.md">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Commit Message</label>
+            <input type="text" id="commit-msg" class="form-control" placeholder="Describe your changes...">
+        </div>
+    </div>
+</div>
+
+<div class="editor-toolbar">
+    <div>
+        <span class="text-muted" id="editor-info">Loading...</span>
+    </div>
+    <div>
+        <button class="btn btn-xs btn-outline-secondary" onclick="toggleWordWrap()">Wrap</button>
+    </div>
+</div>
+<textarea id="code-editor"></textarea>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/markdown/markdown.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/yaml/yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/sql/sql.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/shell/shell.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/go/go.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/rust/rust.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/ruby/ruby.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/php/php.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/dockerfile/dockerfile.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/toml/toml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/jsx/jsx.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/selection/active-line.min.js"></script>
+<script>
+const mode = {{ mode|tojson }};
+const filePath = {{ file_path|tojson }};
+
+const editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+    theme: 'default',
+    lineNumbers: true,
+    matchBrackets: true,
+    autoCloseBrackets: true,
+    styleActiveLine: true,
+    tabSize: 4,
+    indentWithTabs: false,
+    lineWrapping: false,
+    mode: filePath ? Vault.getEditorMode(filePath) : 'text/plain',
+});
+
+document.getElementById('file-path').addEventListener('input', (e) => {
+    const mode = Vault.getEditorMode(e.target.value);
+    editor.setOption('mode', mode);
+});
+
+// Load existing file
+if (mode === 'edit' && filePath) {
+    (async () => {
+        try {
+            const data = await Vault.api(`/api/files/content?path=${encodeURIComponent(filePath)}`);
+            if (data.is_binary) {
+                document.getElementById('editor-info').textContent = 'Binary file - cannot edit';
+                editor.setOption('readOnly', true);
+                editor.setValue('(Binary file)');
+            } else {
+                editor.setValue(data.content || '');
+                document.getElementById('editor-info').textContent = `v${data.version} | ${Vault.formatSize(data.size)} | ${data.author || ''}`;
+                // expose author id for UI checks
+                window._fileAuthorId = data.author_id;
+                const deleteBtn = document.getElementById('delete-btn');
+                try {
+                    const currentUserId = document.body.dataset.userId;
+                    const userRole = document.body.dataset.userRole || '';
+                    const canWrite = ['admin','approver','editor'].includes(userRole);
+                    if (deleteBtn) {
+                        if (canWrite || (data.author_id && String(data.author_id) === String(currentUserId))) {
+                            deleteBtn.style.display = '';
+                        } else {
+                            deleteBtn.style.display = 'none';
+                        }
+                    }
+                } catch (e) { /* ignore */ }
+            }
+        } catch (err) {
+            if (err.message.includes('410') || err.message.includes('deleted')) {
+                document.getElementById('editor-info').textContent = 'File was deleted';
+            } else if (err.message.includes('404')) {
+                document.getElementById('editor-info').textContent = 'New file';
+            } else {
+                Vault.toast(err.message, 'danger');
+            }
+        }
+    })();
+} else {
+    document.getElementById('editor-info').textContent = 'New file';
+}
+
+function showCRBanner(crId, fileCount) {
+    const banner = document.getElementById('cr-banner');
+    document.getElementById('cr-id-display').textContent = crId;
+    document.getElementById('cr-file-count').textContent = fileCount;
+    document.getElementById('cr-link').href = `/change-requests/${crId}`;
+    document.getElementById('cr-review-link').href = `/change-requests/${crId}`;
+    banner.classList.add('show');
+}
+
+async function saveFile() {
+    const path = document.getElementById('file-path').value.trim();
+    if (!path) { Vault.toast('File path is required', 'warning'); return; }
+
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+        const result = await Vault.api('/api/files/save', {
+            method: 'POST',
+            body: {
+                path: path,
+                content: editor.getValue(),
+                message: document.getElementById('commit-msg').value || '',
+            },
+        });
+        Vault.toast(`Staged in CR #${result.cr_id}`, 'success');
+        showCRBanner(result.cr_id, result.file_count);
+        document.getElementById('commit-msg').value = '';
+
+        if (mode === 'new') {
+            // Redirect to edit mode so subsequent saves update the same CR
+            window.history.replaceState(null, '', `/edit?path=${encodeURIComponent(path)}`);
+        }
+    } catch (err) {
+        Vault.toast(err.message, 'danger');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save';
+    }
+}
+
+function toggleWordWrap() {
+    editor.setOption('lineWrapping', !editor.getOption('lineWrapping'));
+}
+
+document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveFile();
+    }
+});
+
+// Load share info for this file when editing
+if (mode === 'edit' && filePath) {
+    (async () => {
+        try {
+            const info = await Vault.api(`/api/files/share-info?path=${encodeURIComponent(filePath)}`);
+            const pubBtn = document.getElementById('public-toggle-btn');
+            const archBtn = document.getElementById('archive-toggle-btn');
+            let copyBtn = document.getElementById('copy-public-btn');
+            if (!copyBtn) {
+                const btn = document.createElement('button');
+                btn.id = 'copy-public-btn';
+                btn.className = 'btn btn-sm btn-outline-secondary';
+                btn.style.display = 'none';
+                btn.textContent = 'Copy Public Link';
+                btn.onclick = () => editorCopyPublic();
+                pubBtn.parentNode.insertBefore(btn, pubBtn.nextSibling);
+                copyBtn = document.getElementById('copy-public-btn');
+            }
+            if (pubBtn) {
+                pubBtn.style.display = '';
+                pubBtn.textContent = info.is_public ? 'Public' : 'Make Public';
+            }
+            if (archBtn) {
+                archBtn.style.display = '';
+                archBtn.textContent = info.is_archived ? 'Unarchive' : 'Archive';
+            }
+            if (copyBtn) {
+                copyBtn.style.display = info.is_public ? '' : 'none';
+            }
+            window._shareInfo = info;
+        } catch (err) {
+            // ignore share-info errors for non-owners/unauthenticated
+        }
+    })();
+}
+
+async function editorTogglePublic() {
+    try {
+        const data = await Vault.api(`/api/files/toggle-public?path=${encodeURIComponent(filePath)}`, { method: 'POST' });
+        const pubBtn = document.getElementById('public-toggle-btn');
+        const copyBtn = document.getElementById('copy-public-btn');
+        if (pubBtn) pubBtn.textContent = data.is_public ? 'Public' : 'Make Public';
+        if (copyBtn) copyBtn.style.display = data.is_public ? '' : 'none';
+        // store public_url for copy (path-based)
+        window._shareInfo = window._shareInfo || {};
+        window._shareInfo.public_url = data.public_url;
+        Vault.toastPublic(data.is_public ? 'Public link enabled' : 'Public link disabled');
+    } catch (err) { Vault.toast(err.message, 'danger'); }
+}
+
+async function editorToggleArchive() {
+    try {
+        const data = await Vault.api(`/api/files/toggle-archive?path=${encodeURIComponent(filePath)}`, { method: 'POST' });
+        const archBtn = document.getElementById('archive-toggle-btn');
+        if (archBtn) archBtn.textContent = data.is_archived ? 'Unarchive' : 'Archive';
+        Vault.toast(data.is_archived ? 'File archived' : 'File unarchived', 'success');
+    } catch (err) { Vault.toast(err.message, 'danger'); }
+}
+
+function editorCopyPublic() {
+    const info = window._shareInfo || {};
+    // prefer server-provided public_url (already encoded per-segment), otherwise construct from filePath
+    let url = info.public_url ? (location.origin + info.public_url) : null;
+    if (!url && filePath) {
+        const encoded = filePath.split('/').map(encodeURIComponent).join('/');
+        url = `${location.origin}/public/raw/${encoded}`;
+    }
+    if (!url) { Vault.toast('No public link available', 'warning'); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+            Vault.toastPublic('Public raw link copied to clipboard');
+        }).catch(() => {
+            Vault.toast('Could not copy to clipboard', 'danger');
+        });
+    } else {
+        // fallback
+        const ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); Vault.toastPublic('Public raw link copied to clipboard'); } catch (e) { Vault.toast('Could not copy to clipboard', 'danger'); }
+        ta.remove();
+    }
+}
+
+async function editorDeleteFile() {
+    if (!await Vault.confirm('Delete File', `Stage deletion of "${filePath}"? This will be added to your draft Change Request for approval.`)) return;
+    try {
+        const result = await Vault.api(`/api/files/delete?path=${encodeURIComponent(filePath)}`, { method: 'DELETE' });
+        Vault.toast(`Deletion staged in CR #${result.cr_id}`, 'success');
+        // after staging deletion, redirect to browse
+        setTimeout(() => { window.location = '/browse'; }, 800);
+    } catch (err) {
+        Vault.toast(err.message, 'danger');
+    }
+}
+</script>
+{% endblock %}

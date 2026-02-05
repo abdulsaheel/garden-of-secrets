@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Audit Log - Vault{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" class="me-2"><path d="M8 0a8 8 0 110 16A8 8 0 018 0zM1.5 8a6.5 6.5 0 1013 0 6.5 6.5 0 00-13 0zm4.879-2.773a.5.5 0 01.242.156l1.5 1.75a.5.5 0 01-.121.723l-1.5 1.062a.5.5 0 11-.578-.816L7.06 7.348l-.992-1.158a.5.5 0 01.311-.81z"/></svg>
+        Audit Log
+    </h1>
+</div>
+
+<div class="card">
+    <div class="card-body p-0" id="audit-list">
+        <div class="loading-spinner"><div class="spinner-border spinner-border-sm me-2"></div> Loading...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => { initAuditLog(); });
+</script>
+{% endblock %}

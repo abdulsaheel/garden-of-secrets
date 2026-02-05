@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Files - Vault{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" class="me-2"><path d="M1.75 1A1.75 1.75 0 000 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0016 13.25v-8.5A1.75 1.75 0 0014.25 3H7.5a.25.25 0 01-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75z"/></svg>
+        Files
+    </h1>
+    <div>
+        <a href="/new?path={{ (current_path + '/' if current_path else '')|urlencode }}" class="btn btn-sm btn-primary">New File</a>
+        <button class="btn btn-sm btn-outline-secondary" onclick="createFolder()">New Folder</button>
+    </div>
+</div>
+
+<div class="file-browser">
+    <div class="file-browser-header">
+        <div class="path-breadcrumb" id="breadcrumb"></div>
+    </div>
+    <div id="file-list"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const currentPath = {{ current_path|tojson }};
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('breadcrumb').innerHTML = Vault.buildBreadcrumb(currentPath);
+    initBrowser(currentPath);
+});
+
+async function createFolder() {
+    const name = prompt('Folder name:');
+    if (!name || !name.trim()) return;
+    const path = currentPath ? currentPath + '/' + name.trim() : name.trim();
+    try {
+        await Vault.api(`/api/files/folder?path=${encodeURIComponent(path)}`, { method: 'POST' });
+        Vault.toast('Folder created', 'success');
+        location.reload();
+    } catch (err) {
+        Vault.toast(err.message, 'danger');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Vault{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <div>
+        <a href="/new" class="btn btn-sm btn-primary">New File</a>
+        <a href="/change-requests/new" class="btn btn-sm btn-outline-secondary">New Change Request</a>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-value">{{ total_files }}</div>
+            <div class="stat-label">Files</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-value">{{ total_versions }}</div>
+            <div class="stat-label">Versions</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card">
+            <div class="stat-value">{{ total_crs }}</div>
+            <div class="stat-label">Change Requests</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Pending Reviews -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                Pending Reviews
+                {% if pending_crs|length > 0 %}
+                <span class="badge bg-warning ms-2">{{ pending_crs|length }}</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if pending_crs %}
+                <table class="table table-sm table-hover mb-0">
+                    <tbody>
+                    {% for cr in pending_crs %}
+                    <tr class="cursor-pointer" onclick="window.location='/change-requests/{{ cr.id }}'">
+                        <td class="mono">#{{ cr.id }}</td>
+                        <td>{{ cr.title }}</td>
+                        <td>{{ cr.author.username }}</td>
+                        <td class="text-muted">{{ cr.created_at.strftime('%b %d') }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state py-3"><p>No pending reviews</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Files -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">Recent Files</div>
+            <div class="card-body p-0">
+                {% if recent_files %}
+                <table class="table table-sm table-hover mb-0">
+                    <tbody>
+                    {% for f in recent_files %}
+                    <tr class="cursor-pointer" onclick="window.location='/edit?path={{ f.file_path|urlencode }}'">
+                        <td class="mono truncate" style="max-width:250px">{{ f.file_path }}</td>
+                        <td class="text-muted">v{{ f.version }}</td>
+                        <td>{{ f.author.username if f.author else '' }}</td>
+                        <td class="text-muted">{{ f.created_at.strftime('%b %d') }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state py-3"><p>No files yet</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Feed -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">Recent Activity</div>
+            <div class="card-body">
+                {% if logs %}
+                {% for log in logs %}
+                <div class="activity-item">
+                    <span class="action-type">{{ log.action }}</span>
+                    <strong>{{ log.user.username if log.user else 'system' }}</strong>
+                    &mdash; {{ log.resource_type }}/{{ log.resource_id }}
+                    <span class="timestamp">{{ log.created_at.strftime('%b %d %H:%M') }}</span>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state py-2"><p>No activity yet</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

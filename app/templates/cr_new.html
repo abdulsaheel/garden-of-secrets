@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}New Change Request - Vault{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="/change-requests" class="text-muted text-decoration-none">&larr; Back to Change Requests</a>
+</div>
+
+<div class="page-header">
+    <h1>New Change Request</h1>
+</div>
+
+<div class="card" style="max-width: 700px;">
+    <div class="card-body">
+        <form id="cr-form">
+            <div class="mb-3">
+                <label class="form-label">Title</label>
+                <input type="text" class="form-control" id="cr-title" required placeholder="Brief description of changes">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" id="cr-desc" rows="4" placeholder="Detailed explanation (optional)"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" id="create-btn">Create Change Request</button>
+            <a href="/change-requests" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('cr-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('create-btn');
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+
+    try {
+        const data = await Vault.api('/api/cr/create', {
+            method: 'POST',
+            body: {
+                title: document.getElementById('cr-title').value,
+                description: document.getElementById('cr-desc').value,
+            },
+        });
+        window.location.href = `/change-requests/${data.id}`;
+    } catch (err) {
+        Vault.toast(err.message, 'danger');
+        btn.disabled = false;
+        btn.textContent = 'Create Change Request';
+    }
+});
+</script>
+{% endblock %}
