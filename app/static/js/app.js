@@ -232,6 +232,7 @@ function showContextMenu(event, path, isFolder, authorId) {
             <a class="dropdown-item" href="/history?path=${encodeURIComponent(path)}">History</a>
             <div class="dropdown-divider"></div>
             <a class="dropdown-item" onclick="togglePublic('${path}')">Toggle public link</a>
+            <a class="dropdown-item" onclick="copyBucketUrl('${path}')">Copy bucket URL</a>
             <a class="dropdown-item" onclick="toggleArchive('${path}')">Toggle archive</a>`;
         if (canWrite || isAuthor) {
             items += `\n            <div class="dropdown-divider"></div>\n            <a class="dropdown-item text-danger" onclick="deleteFile('${path}')">Delete</a>`;
@@ -286,6 +287,16 @@ async function toggleArchive(path) {
         } else {
             Vault.toast('File unarchived', 'success');
         }
+    } catch (err) {
+        Vault.toast(err.message, 'danger');
+    }
+}
+
+async function copyBucketUrl(path) {
+    try {
+        const data = await Vault.api(`/api/files/bucket-url?path=${encodeURIComponent(path)}`);
+        await navigator.clipboard.writeText(data.url);
+        Vault.toastPublic('Bucket URL copied to clipboard');
     } catch (err) {
         Vault.toast(err.message, 'danger');
     }

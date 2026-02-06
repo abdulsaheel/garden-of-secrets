@@ -41,6 +41,7 @@
         {% if mode == 'edit' %}
         <a href="/history?path={{ file_path|urlencode }}" class="btn btn-sm btn-outline-secondary">History</a>
         <button id="public-toggle-btn" class="btn btn-sm btn-outline-secondary" style="display:none" onclick="editorTogglePublic()">Public</button>
+        <button id="bucket-url-btn" class="btn btn-sm btn-outline-secondary" style="display:none" onclick="editorCopyBucketUrl()">Bucket URL</button>
         <button id="archive-toggle-btn" class="btn btn-sm btn-outline-secondary" style="display:none" onclick="editorToggleArchive()">Archive</button>
         <button id="delete-btn" class="btn btn-sm btn-danger" style="display:none" onclick="editorDeleteFile()">Delete</button>
         {% endif %}
@@ -250,6 +251,10 @@ if (mode === 'edit' && filePath) {
             if (copyBtn) {
                 copyBtn.style.display = info.is_public ? '' : 'none';
             }
+            const bucketBtn = document.getElementById('bucket-url-btn');
+            if (bucketBtn) {
+                bucketBtn.style.display = '';
+            }
             window._shareInfo = info;
         } catch (err) {
             // ignore share-info errors for non-owners/unauthenticated
@@ -300,6 +305,16 @@ function editorCopyPublic() {
         const ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select();
         try { document.execCommand('copy'); Vault.toastPublic('Public raw link copied to clipboard'); } catch (e) { Vault.toast('Could not copy to clipboard', 'danger'); }
         ta.remove();
+    }
+}
+
+async function editorCopyBucketUrl() {
+    try {
+        const data = await Vault.api(`/api/files/bucket-url?path=${encodeURIComponent(filePath)}`);
+        await navigator.clipboard.writeText(data.url);
+        Vault.toastPublic('Bucket URL copied to clipboard');
+    } catch (err) {
+        Vault.toast(err.message, 'danger');
     }
 }
 

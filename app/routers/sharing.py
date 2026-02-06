@@ -10,8 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user, require_role
 from app.database import get_db
 from app.models import User, FileShare, AuditLog, UserRole
+from app.s3 import S3Service
+from app.config import get_settings
 
 router = APIRouter(prefix="/api/files", tags=["sharing"])
+settings = get_settings()
 
 WRITE_ROLES = (UserRole.admin.value, UserRole.approver.value, UserRole.editor.value)
 
@@ -48,12 +51,17 @@ async def share_info(
         select(FileShare).where(FileShare.file_path == path)
     )
     share = result.scalar_one_or_none()
+
+    # Get bucket public URL if configured
+    bucket_url = S3Service.get_public_bucket_url(path)
+
     if not share:
         return {
             "is_public": False,
             "is_archived": False,
             "token": None,
             "public_url": None,
+            "bucket_url": bucket_url,
         }
     return {
         "is_public": share.is_public,
@@ -61,6 +69,7 @@ async def share_info(
         "token": share.token,
         # public raw URL is path-based (encode segments so slashes remain separators)
         "public_url": ("/public/raw/" + "/".join([quote(p) for p in share.file_path.split("/")])) if share.is_public else None,
+        "bucket_url": bucket_url,
     }
 
 
@@ -84,10 +93,13 @@ async def toggle_public(
         ip_address=request.client.host if request and request.client else "",
     ))
 
+    bucket_url = S3Service.get_public_bucket_url(path)
+
     return {
         "is_public": share.is_public,
         "token": share.token,
         "public_url": ("/public/raw/" + "/".join([quote(p) for p in share.file_path.split("/")])) if share.is_public else None,
+        "bucket_url": bucket_url,
     }
 
 
@@ -114,3 +126,16 @@ async def toggle_archive(
     return {
         "is_archived": share.is_archived,
     }
+
+
+@router.get("/bucket-url")
+async def get_bucket_url(
+    path: str = Query(...),
+    user: User = Depends(get_current_user),
+):
+    """Get the direct bucket public URL for a file."""
+    bucket_url = S3Service.get_public_bucket_url(path)
+    if not bucket_url:
+        raise HTTPException(400, "Bucket public URL not configured. Set S3_PUBLIC_BASE_URL in your environment.")
+
+    return {"url": bucket_url}

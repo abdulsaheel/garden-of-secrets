@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     s3_region: str = "us-east-1"
     s3_use_ssl: bool = False
     s3_prefix: str = ""  # optional prefix for all keys
+    s3_public_base_url: str = ""  # public bucket URL for direct access (e.g., https://bucket.s3.amazonaws.com or https://cdn.example.com)
 
     # Auth
     jwt_algorithm: str = "HS256"

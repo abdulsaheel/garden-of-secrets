@@ -202,3 +202,15 @@ class S3Service:
             "application/json", "application/javascript", "application/xml",
             "application/x-yaml", "text/markdown", "text/x-python",
         )
+
+    @staticmethod
+    def get_public_bucket_url(key: str) -> str | None:
+        """Get the direct public bucket URL for a file.
+
+        Returns None if s3_public_base_url is not configured.
+        """
+        if not settings.s3_public_base_url:
+            return None
+        base = settings.s3_public_base_url.rstrip("/")
+        full_key = _prefixed(key)
+        return f"{base}/{full_key}"
