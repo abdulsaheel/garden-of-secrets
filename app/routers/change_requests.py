@@ -477,6 +477,9 @@ async def merge_change_request(
         if crf.action in (FileAction.create.value, FileAction.edit.value):
             if not crf.staging_s3_key:
                 continue
+            # Verify staging object exists
+            if not await s3.head_object(crf.staging_s3_key):
+                raise HTTPException(500, f"Staged content for {crf.file_path} is missing from storage")
             try:
                 content = await s3.get_object(crf.staging_s3_key)
             except Exception as e:
