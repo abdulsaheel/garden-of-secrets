@@ -477,7 +477,10 @@ async def merge_change_request(
         if crf.action in (FileAction.create.value, FileAction.edit.value):
             if not crf.staging_s3_key:
                 continue
-            content = await s3.get_object(crf.staging_s3_key)
+            try:
+                content = await s3.get_object(crf.staging_s3_key)
+            except Exception as e:
+                raise HTTPException(500, f"Failed to retrieve staged content for {crf.file_path}: {str(e)}")
             content_type = S3Service.guess_content_type(crf.file_path)
             content_hash = S3Service.compute_hash(content)
 
