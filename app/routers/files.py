@@ -175,6 +175,10 @@ async def _stage_file_in_cr(
                 pass
         await db.delete(e)
 
+    # Flush deletes before inserting to avoid unique constraint violations.
+    if existing:
+        await db.flush()
+
     staging_key = None
     base_version_id = None
 
